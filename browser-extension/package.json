@@ -1,0 +1,17 @@
+{
+  "name": "qwen-web-api-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:content": "vite build --config vite.content.config.ts",
+    "build:main": "vite build --config vite.main.config.ts",
+    "build": "npm run build:content && npm run build:main"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vite-plugin-static-copy": "^1.0.0"
+  }
+}

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+browser-extension/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.uv/
+*.egg-info/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Project config
+.omo
+.superpowers
+
+# Extension packaging
+*.crx
+*.pem
+
+qwen_web

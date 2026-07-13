@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Qwen Web Proxy</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">Qwen Web Proxy</h1>
+
+    <div class="status-bar">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+    </div>
+
+    <form id="configForm">
+      <div class="field">
+        <label for="proxyHost">Host</label>
+        <input type="text" id="proxyHost" name="proxyHost" placeholder="127.0.0.1" />
+      </div>
+
+      <div class="field">
+        <label for="proxyPort">Port</label>
+        <input type="number" id="proxyPort" name="proxyPort" placeholder="11434" />
+      </div>
+
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" name="apiKey" placeholder="sk-qwen-proxy" />
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" id="resetBtn" class="btn btn-secondary">Reset</button>
+      </div>
+    </form>
+
+    <div class="footer">
+      <span>OpenAI Compatible: <code id="endpointDisplay">http://127.0.0.1:11434/v1</code></span>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

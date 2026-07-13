@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Qwen Web API Proxy",
+  "version": "1.0.0",
+  "description": "Expose chat.qwen.ai as an OpenAI-compatible API endpoint",
+  "permissions": ["storage", "scripting", "webNavigation"],
+  "host_permissions": [
+    "https://chat.qwen.ai/*",
+    "https://chat.qwenlm.ai/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Qwen Web API Proxy"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.qwen.ai/*", "https://chat.qwenlm.ai/*"],
+      "js": ["src/content_script.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "background": {
+    "service_worker": "src/service_worker.js",
+    "type": "module"
+  },
+  "icons": {
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  }
+}
