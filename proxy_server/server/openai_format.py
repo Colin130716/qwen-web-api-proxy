@@ -172,8 +172,13 @@ def create_chat_completion_response(
     completion_tokens: int = 0,
     reasoning_content: str | None = None,
     tool_calls: list[dict] | None = None,
+    usage: dict | None = None,
 ) -> dict[str, Any]:
-    """Create a non-streaming OpenAI Chat Completions response."""
+    """Create a non-streaming OpenAI Chat Completions response.
+
+    If ``usage`` dict is provided (from Qwen's real token counts),
+    it takes precedence over the legacy ``prompt_tokens`` / ``completion_tokens`` params.
+    """
     has_tool_calls = bool(tool_calls)
     message: dict[str, Any] = {
         "role": "assistant",
@@ -183,6 +188,20 @@ def create_chat_completion_response(
         message["reasoning_content"] = reasoning_content
     if has_tool_calls:
         message["tool_calls"] = tool_calls
+
+    if usage:
+        usage_out = {
+            "prompt_tokens": usage.get("input_tokens", 0),
+            "completion_tokens": usage.get("output_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        }
+    else:
+        usage_out = {
+            "prompt_tokens": prompt_tokens or 0,
+            "completion_tokens": completion_tokens or 0,
+            "total_tokens": (prompt_tokens or 0) + (completion_tokens or 0),
+        }
+
     return {
         "id": _generate_id(),
         "object": "chat.completion",
@@ -196,11 +215,7 @@ def create_chat_completion_response(
                 "logprobs": None,
             }
         ],
-        "usage": {
-            "prompt_tokens": prompt_tokens or estimate_token_count(""),
-            "completion_tokens": completion_tokens or estimate_token_count(content),
-            "total_tokens": (prompt_tokens or 0) + (completion_tokens or 0),
-        },
+        "usage": usage_out,
         "system_fingerprint": "fp_qwen_proxy",
     }
 
@@ -211,8 +226,13 @@ def create_chat_chunk(
     finish_reason: str | None = None,
     reasoning_content: str | None = None,
     tool_calls: list[dict] | None = None,
+    usage: dict | None = None,
 ) -> str:
-    """Create a streaming SSE data line for a single content chunk."""
+    """Create a streaming SSE data line for a single content chunk.
+
+    When ``finish_reason`` is set, optionally pass ``usage`` to include
+    real token counts (from Qwen) in the final chunk.
+    """
     delta: dict[str, Any] = {}
     if reasoning_content:
         delta["reasoning_content"] = reasoning_content
@@ -235,6 +255,12 @@ def create_chat_chunk(
         ],
         "system_fingerprint": "fp_qwen_proxy",
     }
+    if usage and finish_reason:
+        chunk["usage"] = {
+            "prompt_tokens": usage.get("input_tokens", 0),
+            "completion_tokens": usage.get("output_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        }
     return f"data: {json.dumps(chunk)}\n\n"
 
 

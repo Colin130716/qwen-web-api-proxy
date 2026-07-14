@@ -25,6 +25,9 @@ Thumbs.db
 .omo
 .superpowers
 
+# Superpowers docs
+docs
+
 # Extension packaging
 *.crx
 *.pem

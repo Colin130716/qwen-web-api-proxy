@@ -61,3 +61,64 @@ export type ConnectionStatus =
   | "connecting"
   | "connected"
   | "error";
+
+/** Pending request state for SSE and polling coordination */
+export interface PendingRequest {
+  id: string;
+  bridge: WsBridge;
+  sseBuffer: string;
+  thinkingContent: string;
+  thinkingFinished: boolean;
+  hasSentThinking: boolean;
+  hasSentAnswer: boolean;
+  /** If true, polling is the primary delivery path; SSE data is buffered for debug only */
+  isPolling: boolean;
+  /** Last usage info captured from SSE events — used by handleCompletedResponse */
+  lastUsage?: UsageInfo;
+}
+
+/** Usage info from Qwen SSE */
+export interface UsageInfo {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+}
+
+/** A single choice's delta in an SSE event */
+export interface SseChoiceDelta {
+  phase?: string | null;
+  content?: unknown;
+  status?: string;
+  extra?: Record<string, unknown>;
+}
+
+/** Parsed SSE event (Qwen chat/completions stream) */
+export interface SseEvent {
+  choices?: Array<{
+    delta?: SseChoiceDelta;
+  }>;
+  usage?: UsageInfo;
+  "response.created"?: { response_id?: string };
+}
+
+/** Assistant message from GET /api/v2/chats/<id> response */
+export interface ChatAssistantMessage {
+  id?: string;
+  role?: string;
+  done?: boolean;
+  status?: string;
+  content_list?: Array<{
+    phase?: string;
+    content?: string;
+    extra?: {
+      summary_thought?: { content: string | string[] };
+    };
+  }>;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+import type { WsBridge } from "./ws_bridge";

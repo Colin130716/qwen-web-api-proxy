@@ -59,6 +59,13 @@ export interface QwenDelta {
   thinkFinished?: boolean;
 }
 
+/** Streaming callbacks for real-time delta forwarding */
+export interface QwenStreamCallbacks {
+  onReasoning?: (text: string) => void;
+  onContent?: (text: string) => void;
+  onSlideData?: (data: Partial<QwenSlideData>) => void;
+}
+
 /** OpenAI multimodal content part */
 interface ContentPart {
   type: "text" | "image_url";
@@ -586,7 +593,8 @@ export async function sendQwenMessage(
   searchEnabled: boolean = false,
   files: UploadedFileInfo[] = [],
   mode: "t2t" | "t2i" | "slides" = "t2t",
-): Promise<{ content: string; reasoning: string; parentId: string | null; slideData?: QwenSlideData }> {
+  callbacks?: QwenStreamCallbacks,
+): Promise<{ content: string; reasoning: string; parentId: string | null; slideData?: QwenSlideData; usage?: { input_tokens: number; output_tokens: number; total_tokens: number } }> {
   const fid = uuid();
   const url = `${BASE_URL}/api/v2/chat/completions?chat_id=${chatId}`;
   const hasImages = files.length > 0;
@@ -654,7 +662,7 @@ export async function sendQwenMessage(
         } : {
           meta: { subChatType },
         },
-        sub_chat_type: "slides",
+        sub_chat_type: subChatType,
         parent_id: parentId,
       },
     ],
@@ -685,6 +693,7 @@ export async function sendQwenMessage(
   let content = "";
   let reasoning = "";
   let capturedParentId: string | null = null;
+  let capturedUsage: { input_tokens: number; output_tokens: number; total_tokens: number } | null = null;
   // Deduplicate web search results by URL — Qwen may emit multiple search rounds
   const searchResults: Map<string, string> = new Map();
   // Accumulate slide data from slides phase SSE events
@@ -703,6 +712,20 @@ export async function sendQwenMessage(
         continue;
       }
 
+      // Capture token usage from top-level usage field (present in most SSE events)
+      if (line.startsWith("data:") && !line.includes("[DONE]")) {
+        try {
+          const payload = JSON.parse(line.slice(5).trim());
+          if (payload?.usage && typeof payload.usage === "object" && payload.usage.input_tokens != null) {
+            capturedUsage = {
+              input_tokens: payload.usage.input_tokens || 0,
+              output_tokens: payload.usage.output_tokens || 0,
+              total_tokens: payload.usage.total_tokens || 0,
+            };
+          }
+        } catch { /* skip non-JSON lines */ }
+      }
+
       if (line.startsWith("data:") && line.includes('"web_search"') && line.includes('"finished"') && line.includes("tool_result")) {
         try {
           const payload = JSON.parse(line.slice(5).trim());
@@ -712,6 +735,25 @@ export async function sendQwenMessage(
               if (doc.url && doc.title && !searchResults.has(doc.url)) {
                 searchResults.set(doc.url, doc.title);
               }
+            }
+          }
+        } catch { /* skip unparseable */ }
+      }
+
+      // Capture image_gen_tool results — Qwen autonomously generates images inline
+      if (line.startsWith("data:") && line.includes('"image_gen_tool"') && line.includes('"finished"')) {
+        try {
+          const payload = JSON.parse(line.slice(5).trim());
+          const imageExtra = payload?.choices?.[0]?.delta?.extra;
+          const imageList = imageExtra?.image_list as Array<{ image?: string }> | undefined;
+          if (imageList && imageList.length > 0) {
+            const imageMd = imageList
+              .filter((img: { image?: string }) => img.image)
+              .map((img: { image?: string }) => `\n\n![Generated Image](${img.image})\n\n`)
+              .join("");
+            if (imageMd) {
+              content += imageMd;
+              callbacks?.onContent?.(imageMd);
             }
           }
         } catch { /* skip unparseable */ }
@@ -739,6 +781,13 @@ export async function sendQwenMessage(
                 }
               }
             }
+            callbacks?.onSlideData?.({
+              slides_count: slidesExtra.slides_count,
+              slides_milestone: slidesExtra.slides_milestone,
+              pdf_url: slidesExtra.pdf_url,
+              result: slidesExtra.result,
+              slide_pages: slidesExtra.slide_pages,
+            });
           }
         } catch { /* skip unparseable */ }
       }
@@ -747,8 +796,10 @@ export async function sendQwenMessage(
       if (!delta) continue;
       if (delta.kind === "think") {
         reasoning += delta.text;
+        callbacks?.onReasoning?.(delta.text);
       } else if (delta.kind === "answer") {
         content += delta.text;
+        callbacks?.onContent?.(delta.text);
       }
     }
   }
@@ -761,6 +812,6 @@ export async function sendQwenMessage(
       entries.map(([url, title], i) => `[${i + 1}] [${title}](${url})`).join("\n");
   }
 
-  console.log("[QwenAPI] sendQwenMessage() complete, content len:", content.length, "reasoning len:", reasoning.length, "parentId:", capturedParentId, "searchResults:", searchResults.size, "slidePages:", slideData.slide_pages.length, "pdfUrl:", slideData.pdf_url ? "yes" : "no");
-  return { content, reasoning, parentId: capturedParentId, slideData: slideData.slide_pages.length > 0 || slideData.pdf_url ? slideData : undefined };
+  console.log("[QwenAPI] sendQwenMessage() complete, content len:", content.length, "reasoning len:", reasoning.length, "parentId:", capturedParentId, "usage:", capturedUsage, "searchResults:", searchResults.size, "slidePages:", slideData.slide_pages.length, "pdfUrl:", slideData.pdf_url ? "yes" : "no");
+  return { content, reasoning, parentId: capturedParentId, usage: capturedUsage ?? undefined, slideData: slideData.slide_pages.length > 0 || slideData.pdf_url ? slideData : undefined };
 }

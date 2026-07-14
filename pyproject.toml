@@ -11,3 +11,15 @@ dependencies = [
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+show_error_codes = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_any_unimported = false
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["dist/", "__pycache__/"]

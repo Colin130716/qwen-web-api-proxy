@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Qwen Web API Proxy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Expose chat.qwen.ai as an OpenAI-compatible API endpoint",
   "permissions": ["storage", "scripting", "webNavigation"],
   "host_permissions": [
